@@ -1,16 +1,16 @@
 # Hispaniola_seismicity_Ml
-Unified machine-learning derived earthquake catalog for Hispaniola, combining regional and local datasets. Includes Python scripts, catalogs, and supplemental materials used in the study “Remarkable crustal and slab seismicity in Hispaniola revealed through a unified machine-learning derived earthquake catalog.”
+Unified machine-learning derived earthquake catalog for Hispaniola, combining regional and local datasets. This repository includes Python scripts, catalogs, and supplemental materials supporting the study “Remarkable crustal and slab seismicity in Hispaniola revealed through a unified machine-learning derived earthquake catalog.”
 
 ## Requirements
-These codes use the easyQuake python package (https://github.com/jakewalter/easyQuake) which requires
+These codes rely on the easyQuake python package (https://github.com/jakewalter/easyQuake) which requires:
 
 - Python 3.7
 - Tensorflow-gpu 2.2
 - Obspy
 - Keras
 
-### Download data
-In order to build the catalog we first need to download the raw data from repositories of the International Federation of Digital Seismograph Networks (FDSN) that are available to the public.
+### Download Data
+To build the catalog, raw waveform data must first be downloaded from publicly available repositories of the International Federation of Digital Seismograph Networks (FDSN).
 ```
 from easyQuake import download_mseed
 from easyQuake import daterange
@@ -34,7 +34,7 @@ for single_date in daterange(start_date, end_date):
     download_mseed(dirname=dirname, project_folder=project_folder, single_date=single_date, minlat=lat_a, maxlat=lat_b, minlon=lon_a, maxlon=lon_b, raspberry_shake=True)
 ```
 ### Phase Detection
-easyQuake integrate three deep-learning pickers (EQTransformer, PhaseNet, GPD) which can be selected in the detection_continuous function to perform event detection and seismic phase picking.
+easyQuake integrates three deep-learning phase pickers (EQTransformer, PhaseNet, GPD). These can be selected in the detection_continuous function to perform event detection and seismic phase picking.
 
 ```
 from easyQuake import detection_continuous
@@ -215,6 +215,7 @@ To Verify that picks in a QuakeML catalog match available MiniSEED waveform file
 For Extracting waveform segments around each event in a catalog, optionally filters and plots them, and saves the data (and figures) in an events/ subdirectory of the project folder. it is useful for catalog validation, training datasets, or manual review.
 
 ```cut_event_waveforme(catalog=cat2, project_folder=project_folder, length=120, filteryes=True, plotevent=True)```
+###
 
 
 
