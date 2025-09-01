@@ -212,7 +212,9 @@ To Verify that picks in a QuakeML catalog match available MiniSEED waveform file
 
 ```cat2 = fix_picks_catalog(catalog=cat1, project_folder=project_folder, filename='catalog-2018-gpd-pyocto-hyp-fixed.xml')```
 
-cut_event_waveforme(catalog=cat2, project_folder=project_folder, length=120, filteryes=True, plotevent=True)
+For Extracting waveform segments around each event in a catalog, optionally filters and plots them, and saves the data (and figures) in an events/ subdirectory of the project folder. it is useful for catalog validation, training datasets, or manual review.
+
+```cut_event_waveforme(catalog=cat2, project_folder=project_folder, length=120, filteryes=True, plotevent=True)```
 
 
 
