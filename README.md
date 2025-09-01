@@ -26,8 +26,8 @@ lon_b = -67
 start_date = date(2018, 1, 1)
 end_date = date(2019, 1, 1)
 
-project_code = 'DR-2018'
-project_folder = '/data/grasp/Easyquake/DRproject/2018'
+project_code = '2018'
+project_folder = '/data/DRproject/2018'
 for single_date in daterange(start_date, end_date):
     print(single_date.strftime("%Y-%m-%d"))
     dirname = single_date.strftime("%Y%m%d")
@@ -44,7 +44,7 @@ start_date = date(2018, 1, 1)
 end_date = date(2019, 1, 1)
 
 project_code = '2018'
-project_folder = '/data/grasp/Easyquake/DRproject/2018'
+project_folder = '/data/DRproject/2018'
 for single_date in daterange(start_date, end_date):
     dirname = single_date.strftime("%Y%m%d")
     #GPD
@@ -75,7 +75,7 @@ from multiprocessing import Pool
 pool = Pool(40)
 
 project_code = '2018'
-project_folder = '/data/grasp/Easyquake/DRproject/2018'
+project_folder = '/data/DRproject/2018'
 
 for single_date in daterange(start_date, end_date):
     dirname = single_date.strftime("%Y%m%d")
@@ -93,6 +93,7 @@ cat, dfs = combine_associated(project_folder=project_folder, project_code=projec
 #cat, dfs = combine_associated(project_folder=project_folder, project_code=project_code, machine_picker='EQTransformer')
 #cat, dfs = combine_associated(project_folder=project_folder, project_code=project_code, machine_picker='PhaseNet')
 
+# Estimate magnitudes and write the QuakeML catalog to disk
 cat = magnitude_quakeml(cat=cat, project_folder=project_folder, plot_event=False)
 cat.write('catalog-2018-GPD.xml',format='QUAKEML')
 
@@ -111,32 +112,32 @@ import pandas as pd
 import datetime
 import matplotlib.pyplot as plt
 
-#read picks from deep learning picker
-picks = pd.read_csv("gpd-picks-2018-pyocto.csv")
+# Read picks from the deep-learning phase picker
+picks = pd.read_csv("/data/DRproject/2018/gpd-picks-2018-pyocto.csv")
 print(picks)
 
-#convert 'time' column to datetime format
+# Convert the 'time' column to datetime format
 picks["time"]=pd.to_datetime(picks["time"])
 print(picks)
 
-#convert picks from datetime to simple floats
+# Convert pick times from datetime to UNIX timestamps (floats in seconds)
 picks["time"] = picks["time"].apply(lambda x: x.timestamp())
 print(picks)
 
-#read station information
-stations = pd.read_csv("stations-list-2018-pyocto.csv")
+# Read station information
+stations = pd.read_csv("/data/DRproject/2018/stations-list-2018-pyocto.csv")
 print(stations)
 
-#Create 1D velocity model
+# Create a 1D velocity model from input layers
 layers = pd.read_csv("DRMODEL.csv")
 layers
 model_path = "DR_velocity_model"
 pyocto.VelocityModel1D.create_model(layers, 1., 400, 250, model_path)
 
-#load the velocity model
+# Load the velocity model
 velocity_model = pyocto.VelocityModel1D(model_path, tolerance=2.0)
 
-#create an associator instance and run the association
+# Create an associator instance and run phase association
 associator = pyocto.OctoAssociator.from_area(
     lat=(15, 23),
     lon=(-75.5, -66.5),
@@ -151,7 +152,7 @@ print(associator.crs)
 associator.transform_stations(stations)
 events_1d, assignments_1d = associator.associate(picks, stations)
 
-#Convert event times and coordinate informations back to datetime format, latitude and longitude
+# Convert event times back to datetime (UTC) and transform coordinates to lat/lon
 associator.transform_events(events_1d)
 events_1d["time"] = events_1d["time"].apply(datetime.datetime.fromtimestamp, tz=datetime.timezone.utc)
 print(events_1d)
@@ -160,12 +161,60 @@ print(events_1d.to_string())
 #print(events_1d)
 events_1d.to_csv('catalog-pyocto-gpd-2018.csv')
 
-#Merge the picks and event information
+# Merge the event and pick information
 cat = pd.merge(events_1d, assignments_1d, left_on="idx", right_on="event_idx", suffixes=("", "_pick"))
 print(cat)
 print(cat.to_string())
-
 cat.to_csv('catalog-phases-pyocto-gpd-2018.csv')
+
+from easyQuake import pytocto_file_quakeml
+from easyQuake import magnitude_quakeml
+from easyQuake import simple_cat_df
+
+# Build a QuakeML catalog from the merged CSV
+file = 'catalog-phases-pyocto-gpd-2018.csv'
+cat = pytocto_file_quakeml(file)
+
+# Estimate magnitudes and write the QuakeML catalog to disk
+cat = magnitude_quakeml(cat=cat, project_folder=project_folder, plot_event=False)
+cat.write('catalog-2018-gpd-pyocto.xml', format='QUAKEML')
+
+catdf = simple_cat_df(cat)
+#plt.figure()
+#plt.plot(catdf.index,catdf.magnitude,'.')
+
+print(cat.__str__(print_all=True))
+print(catdf)
+```
+### Locate with Hypoinverse
+Hypoinverse is an efficient and reliable earthquake location program that utilizes a least-squares method to determine the earthquake hypocenter. This program improve the original location of the associators using a 1D local velocity model.
+
+```
+from easyQuake import locate_hyp2000, cut_event_waveforms, fix_picks_catalog, simple_cat_df
+from obspy import read_events
+
+project_code = '2018'
+project_folder = '/data/DRproject/2018'
+
+cat = read_events('/data/DRproject/2018/catalog-2018-gpd-pyocto.xml')
+
+cat1 = locate_hyp2000(cat=cat, project_folder=project_folder, vel_model='VM.crh')
+cat1.write('catalog-2018-gpd-pyocto-hyp.xml', format='QUAKEML')
+print(cat.__str__(print_all=True))
+print(cat)
+
+#print out uncertainty parameters
+catdf = simple_cat_df(cat1,True)
+print(catdf.to_string())
+#print(catdf)
+```
+To Verify that picks in a QuakeML catalog match available MiniSEED waveform files and corrects channel codes (e.g., mismatched horizontal components), the fuction ```fix_picks_catalog``` within easyquake is used to ensure consistency between the catalog and stored waveforms.
+
+```cat2 = fix_picks_catalog(catalog=cat1, project_folder=project_folder, filename='catalog-2018-gpd-pyocto-hyp-fixed.xml')```
+
+cut_event_waveforme(catalog=cat2, project_folder=project_folder, length=120, filteryes=True, plotevent=True)
+
+
 
 
 
