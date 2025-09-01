@@ -205,12 +205,12 @@ print(catdf.to_string())
 
 ```
 ### Additional Utilities
-```fix_picks_catalog```: Ensures picks in a QuakeML catalog match available MiniSEED waveform files and corrects channel codes (e.g., mismatched horizontal components). This keeps the catalog consistent with stored waveforms.
+`fix_picks_catalog`: Ensures picks in a QuakeML catalog match available MiniSEED waveform files and corrects channel codes (e.g., mismatched horizontal components). This keeps the catalog consistent with stored waveforms.
 ```
 cat2 = fix_picks_catalog(catalog=cat1, project_folder=project_folder, filename='catalog-2018-gpd-pyocto-hyp-fixed.xml'
 ```
 
-```cut_event_waveforme```: Extracts waveform segments around each event in a catalog. Optionally filters and plots them, and saves the data (and figures) in an events/ subdirectory. Useful for catalog validation, training datasets, or manual review.
+`cut_event_waveforme`: Extracts waveform segments around each event in a catalog. Optionally filters and plots them, and saves the data (and figures) in an events/ subdirectory. Useful for catalog validation, training datasets, or manual review.
 
 ```
 cut_event_waveforme(catalog=cat2, project_folder=project_folder, length=120, filteryes=True, plotevent=True)
