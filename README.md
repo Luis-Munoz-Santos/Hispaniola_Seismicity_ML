@@ -35,7 +35,6 @@ for single_date in daterange(start_date, end_date):
 ```
 ### Phase Detection
 easyQuake integrates three deep-learning phase pickers (EQTransformer, PhaseNet, GPD). These can be selected in the detection_continuous function to perform event detection and seismic phase picking.
-
 ```
 from easyQuake import detection_continuous
 from easyQuake import daterange
@@ -55,7 +54,7 @@ for single_date in daterange(start_date, end_date):
     #detection_continuous(dirname=dirname, project_folder=project_folder, project_code=project_code, machine=True, machine_picker='PhaseNet', local=True, single_date=single_date, fullpath_python='/home/luis/anaconda3/envs/easyquake/bin/python')
 ```
 ### Event Association and Magnitude Calculation
-This script use the default associatior withing easyQuake and the Python multiprocessing package to parallelize the job.
+This step uses the default associator within easyQuake and the Python multiprocessing package to parallelize the job.
 
 ```
 from easyQuake import association_continuous
@@ -65,13 +64,12 @@ from datetime import date
 from easyQuake import magnitude_quakeml
 from easyQuake import simple_cat_df
 import matplotlib.pyplot as plt
+from multiprocessing import Pool
 
 start_date = date(2018, 1, 1)
 end_date = date(2019, 1, 1)
 maxdist = 300
 maxkm = 300
-
-from multiprocessing import Pool
 pool = Pool(40)
 
 project_code = '2018'
@@ -104,8 +102,7 @@ catdf = simple_cat_df(cat)
 print(cat.__str__(print_all=True))
 #print(catdf)
 ```
-For using PyOcto associator (https://github.com/yetinam/pyocto) instead, you can use the following script:
-
+You can also use PyOcto associator (https://github.com/yetinam/pyocto) instead of the default easyQuake associator:
 ```
 import pyocto
 import pandas as pd
@@ -182,13 +179,11 @@ cat.write('catalog-2018-gpd-pyocto.xml', format='QUAKEML')
 catdf = simple_cat_df(cat)
 #plt.figure()
 #plt.plot(catdf.index,catdf.magnitude,'.')
-
 print(cat.__str__(print_all=True))
 print(catdf)
 ```
 ### Locate with Hypoinverse
-Hypoinverse is an efficient and reliable earthquake location program that utilizes a least-squares method to determine the earthquake hypocenter. This program improve the original location of the associators using a 1D local velocity model.
-
+Hypoinverse is a widely used and reliable earthquake location program that applies a least-squares method with a 1D local velocity model. It refines the preliminary locations obtained from the associator, providing more accurate hypocenter estimates.
 ```
 from easyQuake import locate_hyp2000, cut_event_waveforms, fix_picks_catalog, simple_cat_df
 from obspy import read_events
@@ -207,17 +202,189 @@ print(cat)
 catdf = simple_cat_df(cat1,True)
 print(catdf.to_string())
 #print(catdf)
+
 ```
-To Verify that picks in a QuakeML catalog match available MiniSEED waveform files and corrects channel codes (e.g., mismatched horizontal components), the fuction ```fix_picks_catalog``` within easyquake is used to ensure consistency between the catalog and stored waveforms.
+### Additional Utilities
+```fix_picks_catalog```: Ensures picks in a QuakeML catalog match available MiniSEED waveform files and corrects channel codes (e.g., mismatched horizontal components). This keeps the catalog consistent with stored waveforms.
+```
+cat2 = fix_picks_catalog(catalog=cat1, project_folder=project_folder, filename='catalog-2018-gpd-pyocto-hyp-fixed.xml'
+```
 
-```cat2 = fix_picks_catalog(catalog=cat1, project_folder=project_folder, filename='catalog-2018-gpd-pyocto-hyp-fixed.xml')```
+```cut_event_waveforme```: Extracts waveform segments around each event in a catalog. Optionally filters and plots them, and saves the data (and figures) in an events/ subdirectory. Useful for catalog validation, training datasets, or manual review.
 
-For Extracting waveform segments around each event in a catalog, optionally filters and plots them, and saves the data (and figures) in an events/ subdirectory of the project folder. it is useful for catalog validation, training datasets, or manual review.
+```
+cut_event_waveforme(catalog=cat2, project_folder=project_folder, length=120, filteryes=True, plotevent=True)
+```
+### Merging ML Catalogs
+We generated three separate seismic catalogs for Hispaniola using the deep-learning pickers EQTransformer, GPD, and PhaseNet within easyQuake. To build an aggregated catalog, events were matched across catalogs if their origin times differed by less than 5 seconds and their epicenters were within 200 km. When multiple matches were found, the best event was chosen based on the highest number of associated seismic phases and a realistic depth (>2 km). Unique detections from each picker were also retained, ensuring the final aggregated catalog combines common and model-specific events into a more complete ML-derived earthquake catalog.
 
-```cut_event_waveforme(catalog=cat2, project_folder=project_folder, length=120, filteryes=True, plotevent=True)```
-###
+```
+from obspy import read_events, Catalog
+from obspy.core.event import Event
+from obspy.geodetics import gps2dist_azimuth
+import numpy as np
+from easyQuake import simple_cat_df
 
+# Load catalogs
+cat_pnet = read_events("catalog-pyocto-PNET-reduced.xml")
+cat_gpd = read_events("catalog-pyocto-gpd-reduced.xml")
+cat_eqt = read_events("catalog-pyocto-eqtransformer-reduced.xml")
 
+time_tolerance = 5  # seconds
+distance_tolerance_km = 200  # kilometers
+
+# Get origin timestamp
+def get_timestamp(event):
+    return event.preferred_origin().time.timestamp
+
+# Count number of picks (phases)
+def count_phases(event):
+    return len(event.preferred_origin().arrivals)
+
+# Get distance between two events in kilometers
+def get_distance_km(ev1, ev2):
+    try:
+        orig1 = ev1.preferred_origin()
+        orig2 = ev2.preferred_origin()
+        lat1, lon1 = orig1.latitude, orig1.longitude
+        lat2, lon2 = orig2.latitude, orig2.longitude
+        distance_m, _, _ = gps2dist_azimuth(lat1, lon1, lat2, lon2)
+        return distance_m / 1000.0
+    except Exception:
+        return np.inf  # if location is missing, treat as infinite distance
+
+# Choose the best event based on number of phases and depth condition
+def choose_best_event(events):
+    filtered = []
+    for ev in events:
+        try:
+            depth = ev.preferred_origin().depth
+            if depth is not None and 2000 <= depth <= 200000:
+                filtered.append(ev)
+        except Exception:
+            continue
+    if filtered:
+        return max(filtered, key=count_phases)
+    else:
+        return max(events, key=count_phases)
+
+# Create timestamp arrays
+timestamps_pnet = np.array([get_timestamp(ev) for ev in cat_pnet])
+timestamps_gpd = np.array([get_timestamp(ev) for ev in cat_gpd])
+timestamps_eqt = np.array([get_timestamp(ev) for ev in cat_eqt])
+
+# Output catalogs
+unique_pnet = Catalog()
+unique_gpd = Catalog()
+unique_eqt = Catalog()
+master_catalog = Catalog()
+
+# Track matches
+matched_gpd = set()
+matched_eqt = set()
+matched_pnet = set()
+
+# Counters
+common_all_three = 0
+common_pnet_gpd = 0
+common_pnet_eqt = 0
+common_gpd_eqt = 0
+
+# Match PNET events
+for i, ev_pnet in enumerate(cat_pnet):
+    time_pnet = timestamps_pnet[i]
+
+    gpd_matches = [
+        j for j, ev_gpd in enumerate(cat_gpd)
+        if abs(timestamps_gpd[j] - time_pnet) <= time_tolerance and get_distance_km(ev_pnet, ev_gpd) <= distance_tolerance_km
+    ]
+    eqt_matches = [
+        k for k, ev_eqt in enumerate(cat_eqt)
+        if abs(timestamps_eqt[k] - time_pnet) <= time_tolerance and get_distance_km(ev_pnet, ev_eqt) <= distance_tolerance_km
+    ]
+
+    matched_gpd_flag = len(gpd_matches) > 0
+    matched_eqt_flag = len(eqt_matches) > 0
+
+    if matched_gpd_flag and matched_eqt_flag:
+        common_all_three += 1
+        matched_pnet.add(i)
+        matched_gpd.update(gpd_matches)
+        matched_eqt.update(eqt_matches)
+        candidates = [ev_pnet] + [cat_gpd[j] for j in gpd_matches] + [cat_eqt[k] for k in eqt_matches]
+        best_event = choose_best_event(candidates)
+        master_catalog.append(best_event)
+    elif matched_gpd_flag:
+        common_pnet_gpd += 1
+        matched_pnet.add(i)
+        matched_gpd.update(gpd_matches)
+        candidates = [ev_pnet] + [cat_gpd[j] for j in gpd_matches]
+        best_event = choose_best_event(candidates)
+        master_catalog.append(best_event)
+    elif matched_eqt_flag:
+        common_pnet_eqt += 1
+        matched_pnet.add(i)
+        matched_eqt.update(eqt_matches)
+        candidates = [ev_pnet] + [cat_eqt[k] for k in eqt_matches]
+        best_event = choose_best_event(candidates)
+        master_catalog.append(best_event)
+    else:
+        unique_pnet.append(ev_pnet)
+        master_catalog.append(ev_pnet)
+
+# GPD unique or matched with EQT
+for j, ev_gpd in enumerate(cat_gpd):
+    if j in matched_gpd:
+        continue
+    time_gpd = timestamps_gpd[j]
+    eqt_matches = [
+        k for k, ev_eqt in enumerate(cat_eqt)
+        if abs(timestamps_eqt[k] - time_gpd) <= time_tolerance and get_distance_km(ev_gpd, ev_eqt) <= distance_tolerance_km
+    ]
+    if len(eqt_matches) > 0:
+        common_gpd_eqt += 1
+        matched_eqt.update(eqt_matches)
+        candidates = [ev_gpd] + [cat_eqt[k] for k in eqt_matches]
+        best_event = choose_best_event(candidates)
+        master_catalog.append(best_event)
+    else:
+        unique_gpd.append(ev_gpd)
+        master_catalog.append(ev_gpd)
+
+# EQT unique
+for k, ev_eqt in enumerate(cat_eqt):
+    if k not in matched_eqt:
+        unique_eqt.append(ev_eqt)
+        master_catalog.append(ev_eqt)
+
+# Save catalogs
+def save_catalog(catalog, base_name):
+    xml_name = f"{base_name}.xml"
+    csv_name = f"{base_name}.csv"
+    catalog.write(xml_name, format="QUAKEML")
+    df = simple_cat_df(catalog, True)
+    df.to_csv(csv_name)
+    print(f"Saved {xml_name} and {csv_name}")
+
+save_catalog(unique_pnet, "unique-PNET-events-best")
+save_catalog(unique_gpd, "unique-GPD-events-best")
+save_catalog(unique_eqt, "unique-EQT-events-best")
+save_catalog(master_catalog, "ML-master-catalog-best")
+
+# Statistics
+print("Match statistics:")
+print(f"Total events in PNET: {len(cat_pnet)}")
+print(f"Total events in GPD: {len(cat_gpd)}")
+print(f"Total events in EQT: {len(cat_eqt)}")
+print(f"Unique PNET events: {len(unique_pnet)}")
+print(f"Unique GPD events: {len(unique_gpd)}")
+print(f"Unique EQT events: {len(unique_eqt)}")
+print(f"Total events in master catalog: {len(master_catalog)}")
+print(f"Common events in all 3 catalogs: {common_all_three}")
+print(f"Common events between PNET & GPD only: {common_pnet_gpd}")
+print(f"Common events between PNET & EQT only: {common_pnet_eqt}")
+print(f"Common events between GPD & EQT only: {common_gpd_eqt}")
+```
 
 
 
