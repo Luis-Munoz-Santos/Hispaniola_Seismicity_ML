@@ -210,7 +210,7 @@ print(catdf.to_string())
 cat2 = fix_picks_catalog(catalog=cat1, project_folder=project_folder, filename='catalog-2018-gpd-pyocto-hyp-fixed.xml'
 ```
 
-`cut_event_waveforme`: Extracts waveform segments around each event in a catalog. Optionally filters and plots them, and saves the data (and figures) in an events/ subdirectory. Useful for catalog validation, training datasets, or manual review.
+`cut_event_waveforme`: Extracts waveform segments around each event in a catalog. Optionally filters and plots them, and saves the data (and figures) in an 'events/' subdirectory. Useful for catalog validation, training datasets, or manual review.
 
 ```
 cut_event_waveforme(catalog=cat2, project_folder=project_folder, length=120, filteryes=True, plotevent=True)
