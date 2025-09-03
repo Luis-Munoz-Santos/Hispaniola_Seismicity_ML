@@ -34,7 +34,7 @@ for single_date in daterange(start_date, end_date):
     download_mseed(dirname=dirname, project_folder=project_folder, single_date=single_date, minlat=lat_a, maxlat=lat_b, minlon=lon_a, maxlon=lon_b, raspberry_shake=True)
 ```
 ### Phase Detection
-easyQuake integrates three deep-learning phase pickers (EQTransformer, PhaseNet, GPD). These can be selected in the detection_continuous function to perform event detection and seismic phase picking.
+easyQuake integrates three deep-learning phase pickers (EQTransformer, PhaseNet, GPD). These can be selected in the `detection_continuous` function to perform event detection and seismic phase picking.
 ```
 from easyQuake import detection_continuous
 from easyQuake import daterange
