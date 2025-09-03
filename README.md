@@ -54,7 +54,7 @@ for single_date in daterange(start_date, end_date):
     #detection_continuous(dirname=dirname, project_folder=project_folder, project_code=project_code, machine=True, machine_picker='PhaseNet', local=True, single_date=single_date, fullpath_python='/home/luis/anaconda3/envs/easyquake/bin/python')
 ```
 ### Event Association and Magnitude Calculation
-This step uses the default associator within easyQuake and the Python multiprocessing package to parallelize the job.
+This step uses the default associator within easyQuake and the Python multiprocessing package to parallelize the job. The associated events are then merged into a single earthquake catalog, and local magnitudes are calculated for each event.
 
 ```
 from easyQuake import association_continuous
@@ -202,7 +202,6 @@ print(cat)
 catdf = simple_cat_df(cat1,True)
 print(catdf.to_string())
 #print(catdf)
-
 ```
 ### Additional Utilities
 `fix_picks_catalog`: Ensures picks in a QuakeML catalog match available MiniSEED waveform files and corrects channel codes (e.g., mismatched horizontal components). This keeps the catalog consistent with stored waveforms.
@@ -210,7 +209,7 @@ print(catdf.to_string())
 cat2 = fix_picks_catalog(catalog=cat1, project_folder=project_folder, filename='catalog-2018-gpd-pyocto-hyp-fixed.xml'
 ```
 
-`cut_event_waveforme`: Extracts waveform segments around each event in a catalog. Optionally filters and plots them, and saves the data (and figures) in an 'events/' subdirectory. Useful for catalog validation, training datasets, or manual review.
+`cut_event_waveforme`: Extracts waveform segments around each event in a catalog. Optionally filters and plots them, and saves the data (and figures) in an `events/` subdirectory. Useful for catalog validation, training datasets, or manual review.
 
 ```
 cut_event_waveforme(catalog=cat2, project_folder=project_folder, length=120, filteryes=True, plotevent=True)
