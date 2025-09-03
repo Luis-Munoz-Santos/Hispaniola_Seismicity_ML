@@ -1,5 +1,5 @@
 # Hispaniola_Seismicity_ML
-Unified machine-learning derived earthquake catalog for Hispaniola, combining regional and local datasets. This repository includes Python scripts, catalogs, and supplemental materials supporting the study “Remarkable crustal and slab seismicity in Hispaniola revealed through a unified machine-learning derived earthquake catalog.”
+Unified machine-learning derived earthquake catalog for Hispaniola, combining regional and local datasets. This repository includes Python scripts, catalogs, and supplemental materials supporting the study “Active crustal and slab seismicity in Hispaniola revealed through a unified machine-learning derived earthquake catalog.”
 
 ## Requirements
 These codes rely on the easyQuake python package (https://github.com/jakewalter/easyQuake) which requires:
